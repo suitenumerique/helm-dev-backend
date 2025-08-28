@@ -19,3 +19,17 @@ redis:
   image: redis:8.2-alpine
   #username: user
   #password: pass
+
+
+minio:
+  enabled: false
+  image: minio/minio
+  name: minio
+  hostname: minio.127.0.0.1.nip.io
+  tls:
+    enabled: false
+    secretName: minio-tls
+  username: dinum
+  password: password
+  bucket: dinum
+  size: 1Gi

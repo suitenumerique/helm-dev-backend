@@ -1,0 +1,146 @@
+{{ if .Values.minio.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "dev-backends.minio.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  rules:
+  - host: "{{ .Values.minio.hostname }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
+            port:
+              number: 9001
+  {{ if .Values.minio.tls.enabled }}
+  tls:
+  - hosts:
+    - "{{ .Values.minio.hostname }}"
+    secretName: "{{ .Values.minio.tls.secretName }}"
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: client
+    port: 9000
+    protocol: TCP
+    targetPort: 9000
+  - name: console
+    port: 9001
+    protocol: TCP
+    targetPort: 9001
+  selector:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: minio
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "dev-backends.minio.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+  labels:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: minio
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backends
+      app.kubernetes.io/name: minio
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backends
+        app.kubernetes.io/name: minio
+      annotations:
+        configmap/hash: {{ include (print $.Template.BasePath "/minio-secret.yaml") . | sha256sum }}
+    spec:
+      containers:
+      - name: minio
+        command:
+          - /bin/sh
+          - -c
+          - |
+            minio server --console-address :9001 /data
+        env:
+          - name: MINIO_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: {{ template "dev-backends.minio.fullname" . }}
+          - name: MINIO_ROOT_USER
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: {{ template "dev-backends.minio.fullname" . }}
+        image: {{ .Values.minio.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+          name: client
+        - containerPort: 9001
+          name: console
+        volumeMounts:
+        - mountPath: /data
+          name: data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.minio.size }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "dev-backends.minio.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ttlSecondsAfterFinished: 0
+  template:
+    spec:
+      initContainers:
+      - name: wait-for-minio
+        image: busybox:1.35
+        command:
+          - /bin/sh
+          - -c
+          - |
+            echo "Attente de MinIO sur minio:9000..."
+            until nc -z {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }} 9000; do
+              echo "MinIO pas encore prêt, attente 5s..."
+              sleep 5
+            done
+            echo "MinIO est accessible !"
+      containers:
+      - name: mc
+        image: minio/mc
+        command:
+          - /bin/sh
+          - -c
+          - |
+            /usr/bin/mc alias set local-server http://{{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}:9000 {{ .Values.minio.username }} {{ .Values.minio.password }} && \
+            /usr/bin/mc ls local-server/{{ .Values.minio.bucket }}
+            if [ $? -eq 0 ]; then
+              echo "Bucket already present"
+              exit 0
+            fi
+            echo "Create bucket"
+            /usr/bin/mc mb local-server/{{ .Values.minio.bucket }} && \
+            exit 0
+      restartPolicy: Never
+  backoffLimit: 1
+{{ end }}
