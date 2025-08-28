@@ -1,0 +1,71 @@
+{{ if .Values.keycloak.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: tcp-postgresql
+    port: 5432
+    protocol: TCP
+    targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: kc-postgresql
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backends
+      app.kubernetes.io/name: kc-postgresql
+  serviceName: "kc-postgres"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backends
+        app.kubernetes.io/name: kc-postgresql
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: pg
+        image: {{ .Values.keycloak.db.image }}
+        ports:
+        - containerPort: 5432
+          name: tcp-postgresql
+        env:
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+          - name: POSTGRES_DB
+            valueFrom:
+              secretKeyRef:
+                key: database
+                name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.keycloak.db.size }}
+{{ end }}

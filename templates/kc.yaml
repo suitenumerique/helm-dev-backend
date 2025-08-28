@@ -1,0 +1,126 @@
+{{ if .Values.keycloak.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "dev-backends.keycloak.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  rules:
+  - host: "{{ .Values.keycloak.hostname }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ template "dev-backends.keycloak.fullname" . }}
+            port:
+              number: 8080
+  {{ if .Values.keycloak.tls.enabled }}
+  tls:
+  - hosts:
+    - "{{ .Values.keycloak.hostname }}"
+    secretName: "{{ .Values.keycloak.tls.secretName }}"
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "dev-backends.keycloak.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: tcp-keycloak
+    port: 8080
+    protocol: TCP
+    targetPort: tcp-keycloak
+  selector:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: keycloak
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ template "dev-backends.keycloak.fullname" . }}-realm
+  namespace: {{ include  "dev-backends.namespace" . }}
+stringData:
+  realm.json: |
+    {{- include "dev-backends.keycloak.realm" . | nindent 4 }}
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "dev-backends.keycloak.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backends
+      app.kubernetes.io/name: keycloak
+  serviceName: "keycloak"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backends
+        app.kubernetes.io/name: keycloak
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: keycloak
+        image: {{ .Values.keycloak.image }}
+        args:
+          - start-dev
+          - --features=preview
+          - --import-realm
+          - --proxy=edge
+          - --hostname={{ .Values.keycloak.hostname }}
+          - --hostname-strict=false
+          - --hostname-strict-https=false
+        ports:
+        - containerPort: 8080
+          name: tcp-keycloak
+        env:
+          - name: KEYCLOAK_ADMIN
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: {{ template "dev-backends.keycloak.fullname" . }}
+          - name: KEYCLOAK_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: {{ template "dev-backends.keycloak.fullname" . }}
+          - name: PROXY_ADDRESS_FORWARDING
+            value: 'true'
+          - name: KC_DB_URL_HOST
+            value: {{ template "dev-backends.keycloak.fullname" . }}-pg
+          - name: KC_DB_URL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database
+                name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+          - name: KC_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+          - name: KC_DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: {{ template "dev-backends.keycloak.fullname" . }}-pg
+          - name: KC_DB_SCHEMA
+            value: public
+        volumeMounts:
+        - name: realm
+          mountPath: "/opt/keycloak/data/import"
+          readOnly: true
+      volumes:
+      - name: realm
+        secret:
+          secretName: {{ template "dev-backends.keycloak.fullname" . }}-realm
+{{ end }}
