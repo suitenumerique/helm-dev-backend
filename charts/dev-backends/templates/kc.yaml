@@ -115,6 +115,8 @@ spec:
                 name: {{ template "dev-backends.keycloak.fullname" . }}-pg
           - name: KC_DB_SCHEMA
             value: public
+          - name: KC_DB
+            value: postgres
         volumeMounts:
         - name: realm
           mountPath: "/opt/keycloak/data/import"
