@@ -1,0 +1,13 @@
+#namespaceOverride: toto
+#nameOverride: toto
+#fullnameOverride: toto
+
+postgres:
+  enabled: false
+  name: postgres
+  #serviceNameOverride: postgres
+  image: postgres:16-alpine
+  username: dinum
+  password: pass
+  database: dinum
+  size: 1Gi

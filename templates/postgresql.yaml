@@ -1,0 +1,92 @@
+{{ if .Values.postgres.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ template "dev-backends.postgres.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+type: Opaque
+stringData:
+  username: {{ .Values.postgres.username }}
+  password: {{ .Values.postgres.password }}
+  database: {{ .Values.postgres.database }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgres.serviceNameOverride | default (include "dev-backends.postgres.fullname" . | trunc 52 | trimSuffix "-") }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: tcp-postgresql
+    port: 5432
+    protocol: TCP
+    targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: dev-backend
+    app.kubernetes.io/name: postgresql
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "dev-backends.postgres.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backend
+      app.kubernetes.io/name: postgresql
+  serviceName: "postgres"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backend
+        app.kubernetes.io/name: postgresql
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: pg
+        image: {{ .Values.postgres.image }}
+        readinessProbe:
+          exec:
+            command: [ "pg_isready", "-U", "{{ .Values.postgres.username }}", "-d", "{{ .Values.postgres.database }}", "-h", "127.0.0.1" ]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command: [ "pg_isready", "-U", "{{ .Values.postgres.username }}", "-d", "{{ .Values.postgres.database }}", "-h", "127.0.0.1" ]
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        ports:
+        - containerPort: 5432
+          name: tcp-postgresql
+        env:
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: {{ template "dev-backends.postgres.fullname" . }}
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: {{ template "dev-backends.postgres.fullname" . }}
+          - name: POSTGRES_DB
+            valueFrom:
+              secretKeyRef:
+                key: database
+                name: {{ template "dev-backends.postgres.fullname" . }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.postgres.size }}
+{{ end }}
