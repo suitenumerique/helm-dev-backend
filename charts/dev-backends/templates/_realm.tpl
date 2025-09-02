@@ -650,17 +650,10 @@ Create keycloak realm.
       "clientAuthenticatorType": "client-secret",
       "secret": "ThisIsAnExampleKeyForDevPurposeOnly",
       "redirectUris": [
-        "http://localhost:8070/*",
-        "http://localhost:8071/*",
-        "http://localhost:3200/*",
-        "http://localhost:8088/*",
-        "http://localhost:3000/*"
+        "*"
       ],
       "webOrigins": [
-        "http://localhost:3200",
-        "http://localhost:8088",
-        "http://localhost:8070",
-        "http://localhost:3000"
+        "*"
       ],
       "notBefore": 0,
       "bearerOnly": "false",
@@ -676,7 +669,7 @@ Create keycloak realm.
         "access.token.lifespan": "-1",
         "client.secret.creation.time": "1707820779",
         "user.info.response.signature.alg": "RS256",
-        "post.logout.redirect.uris": "http://localhost:8070/*##http://localhost:3200/*##http://localhost:3000/*",
+        "post.logout.redirect.uris": "*",
         "oauth2.device.authorization.grant.enabled": "false",
         "use.jwks.url": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
