@@ -33,6 +33,7 @@ minio:
   password: password
   bucket: dinum
   size: 1Gi
+  versioning: false
 
 keycloak:
   enabled: false
