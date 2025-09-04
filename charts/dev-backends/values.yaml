@@ -25,10 +25,18 @@ minio:
   image: minio/minio
   name: minio
   #serviceNameOverride: minio
-  hostname: minio.127.0.0.1.nip.io
-  tls:
+  ingress:
     enabled: false
-    secretName: minio-tls
+    hostname: minio.127.0.0.1.nip.io
+    tls:
+      enabled: false
+      secretName: minio-tls
+  consoleIngress:
+    enabled: false
+    hostname: minio-console.127.0.0.1.nip.io
+    tls:
+      enabled: false
+      secretName: minio-tls
   username: dinum
   password: password
   bucket: dinum
