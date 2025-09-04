@@ -139,7 +139,12 @@ spec:
               exit 0
             fi
             echo "Create bucket"
-            /usr/bin/mc mb local-server/{{ .Values.minio.bucket }} && \
+            /usr/bin/mc mb local-server/{{ .Values.minio.bucket }}
+            enable_versioning={{ .Values.minio.versioning }}
+            if [ "$enable_versioning" = "true" ]; then
+              /usr/bin/mc version enable local-server/{{ .Values.minio.bucket }}
+              echo "Versioning enabled"
+            fi
             exit 0
       restartPolicy: Never
   backoffLimit: 1
