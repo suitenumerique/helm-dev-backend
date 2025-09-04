@@ -78,12 +78,12 @@ spec:
             valueFrom:
               secretKeyRef:
                 key: password
-                name: {{ template "dev-backends.minio.fullname" . }}
+                name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
           - name: MINIO_ROOT_USER
             valueFrom:
               secretKeyRef:
                 key: username
-                name: {{ template "dev-backends.minio.fullname" . }}
+                name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
         image: {{ .Values.minio.image }}
         imagePullPolicy: IfNotPresent
         ports:
