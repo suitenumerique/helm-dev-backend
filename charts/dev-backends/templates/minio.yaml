@@ -1,13 +1,40 @@
 {{ if .Values.minio.enabled }}
+{{- if .Values.minio.ingress.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ template "dev-backends.minio.fullname" . }}
+  name: {{ template "dev-backends.minio.fullname" . }}-api
   namespace: {{ include  "dev-backends.namespace" . }}
 spec:
   rules:
-  - host: "{{ .Values.minio.hostname }}"
+  - host: "{{ .Values.minio.ingress.hostname }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
+            port:
+              number: 9000
+  {{ if .Values.minio.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - "{{ .Values.minio.ingress.hostname }}"
+    secretName: "{{ .Values.minio.ingress.tls.secretName }}"
+  {{- end }}
+{{- end }}
+{{- if .Values.minio.consoleIngress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "dev-backends.minio.fullname" . }}-console
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  rules:
+  - host: "{{ .Values.minio.consoleIngress.hostname }}"
     http:
       paths:
       - path: /
@@ -17,12 +44,13 @@ spec:
             name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
             port:
               number: 9001
-  {{ if .Values.minio.tls.enabled }}
+  {{ if .Values.minio.consoleIngress.tls.enabled }}
   tls:
   - hosts:
-    - "{{ .Values.minio.hostname }}"
-    secretName: "{{ .Values.minio.tls.secretName }}"
+    - "{{ .Values.minio.consoleIngress.hostname }}"
+    secretName: "{{ .Values.minio.consoleIngress.tls.secretName }}"
   {{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -84,6 +112,8 @@ spec:
               secretKeyRef:
                 key: username
                 name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
+          - name: MINIO_API_CORS_ALLOW_ORIGIN
+            value: "*"
         image: {{ .Values.minio.image }}
         imagePullPolicy: IfNotPresent
         ports:
