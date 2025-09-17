@@ -17,7 +17,7 @@ spec:
           service:
             name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
             port:
-              number: 9000
+              number: {{ .Values.minio.api.port }}
   {{ if .Values.minio.ingress.tls.enabled }}
   tls:
   - hosts:
@@ -43,7 +43,7 @@ spec:
           service:
             name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
             port:
-              number: 9001
+              number: {{ .Values.minio.console.port }}
   {{ if .Values.minio.consoleIngress.tls.enabled }}
   tls:
   - hosts:
@@ -60,13 +60,13 @@ metadata:
 spec:
   ports:
   - name: client
-    port: 9000
+    port: {{ .Values.minio.api.port }}
     protocol: TCP
-    targetPort: 9000
+    targetPort: {{ .Values.minio.api.port }}
   - name: console
-    port: 9001
+    port: {{ .Values.minio.console.port }}
     protocol: TCP
-    targetPort: 9001
+    targetPort: {{ .Values.minio.console.port }}
   selector:
     app.kubernetes.io/instance: dev-backends
     app.kubernetes.io/name: minio
@@ -100,7 +100,7 @@ spec:
           - /bin/sh
           - -c
           - |
-            minio server --console-address :9001 /data
+            minio server --address :{{ .Values.minio.api.port }} --console-address :{{ .Values.minio.console.port }} /data
         env:
           - name: MINIO_ROOT_PASSWORD
             valueFrom:
@@ -117,9 +117,9 @@ spec:
         image: {{ .Values.minio.image }}
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 9000
+        - containerPort: {{ .Values.minio.api.port }}
           name: client
-        - containerPort: 9001
+        - containerPort: {{ .Values.minio.console.port }}
           name: console
         volumeMounts:
         - mountPath: /data
@@ -149,8 +149,8 @@ spec:
           - /bin/sh
           - -c
           - |
-            echo "Attente de MinIO sur minio:9000..."
-            until nc -z {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }} 9000; do
+            echo "Attente de MinIO sur minio:{{ .Values.minio.api.port }}..."
+            until nc -z {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }} {{ .Values.minio.api.port }}; do
               echo "MinIO pas encore prêt, attente 5s..."
               sleep 5
             done
@@ -162,7 +162,7 @@ spec:
           - /bin/sh
           - -c
           - |
-            /usr/bin/mc alias set local-server http://{{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}:9000 {{ .Values.minio.username }} {{ .Values.minio.password }} && \
+            /usr/bin/mc alias set local-server http://{{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}:{{ .Values.minio.api.port }} {{ .Values.minio.username }} {{ .Values.minio.password }} && \
             /usr/bin/mc ls local-server/{{ .Values.minio.bucket }}
             if [ $? -eq 0 ]; then
               echo "Bucket already present"
