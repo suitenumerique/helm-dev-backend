@@ -37,6 +37,10 @@ minio:
     tls:
       enabled: false
       secretName: minio-tls
+  api:
+    port: 9000
+  console:
+    port: 9001
   username: dinum
   password: password
   bucket: dinum
