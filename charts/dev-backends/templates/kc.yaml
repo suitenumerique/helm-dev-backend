@@ -5,6 +5,10 @@ kind: Ingress
 metadata:
   name: {{ template "dev-backends.keycloak.fullname" . }}
   namespace: {{ include  "dev-backends.namespace" . }}
+  {{- with .Values.keycloak.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   rules:
   - host: "{{ .Values.keycloak.hostname }}"

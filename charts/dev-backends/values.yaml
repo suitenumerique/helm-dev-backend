@@ -28,12 +28,14 @@ minio:
   ingress:
     enabled: false
     hostname: minio.127.0.0.1.nip.io
+    annotations: {}
     tls:
       enabled: false
       secretName: minio-tls
   consoleIngress:
     enabled: false
     hostname: minio-console.127.0.0.1.nip.io
+    annotations: {}
     tls:
       enabled: false
       secretName: minio-tls
@@ -53,6 +55,8 @@ keycloak:
   name: keycloak
   #serviceNameOverride: keycloak
   hostname: keycloak.127.0.0.1.nip.io
+  # Ingress annotations
+  annotations: {}
   username: admin
   password: pass
   tls:
