@@ -73,3 +73,33 @@ keycloak:
     username: user
     password: pass
     email: user@example.com
+dsproxy:
+  aws_access_key: dinum
+  aws_secret_key: password
+  aws_url: http://release-name-dev-backend-minio
+  aws_region: eu-east-1
+  enabled: false
+  name: dsproxy
+  envVars: 
+    <<: []
+  #serviceNameOverride: dsproxy
+  image: lasuite/ds_proxy:c1be340fa5d4090e74392d41ea6faaebc7c9abe0
+  command:
+    - /bin/sh
+    - "-c"
+    - |
+      /dsproxy/ds_proxy proxy --address=0.0.0.0:4444 --password-file /etc/dsproxy/PASSWORD \
+      --salt "$SALT" --keyring-file /etc/dsproxy/keyring.toml --upstream-url ${AWS_URL} \
+      --local-encryption-directory /var/tmp/local_encryption/ --aws-access-key ${AWS_ACCESS_KEY} \
+      --aws-secret-key ${AWS_SECRET_KEY} --aws-region ${AWS_REGION}
+  #username: user
+  #password: pass
+  ingress:
+    enabled: false
+    hostname: dsproxy.127.0.0.1.nip.io
+    annotations: {}
+    tls:
+      enabled: false
+      secretName: dsproxy-tls
+  localSecret:
+    enabled: false

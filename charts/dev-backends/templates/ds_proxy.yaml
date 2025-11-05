@@ -1,0 +1,130 @@
+{{ if .Values.dsproxy.enabled }}
+{{- if .Values.dsproxy.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "dev-backends.dsproxy.fullname" . }}-api
+  namespace: {{ include  "dev-backends.namespace" . }}
+  {{- with .Values.dsproxy.ingress.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+  - host: "{{ .Values.dsproxy.ingress.hostname }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.dsproxy.serviceNameOverride | default (include "dev-backends.dsproxy.fullname" . | trunc 52 | trimSuffix "-") }}
+            port:
+              number: 4444
+  {{ if .Values.dsproxy.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - "{{ .Values.dsproxy.ingress.hostname }}"
+    secretName: "{{ .Values.dsproxy.ingress.tls.secretName }}"
+  {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.dsproxy.serviceNameOverride | default (include "dev-backends.dsproxy.fullname" . | trunc 52 | trimSuffix "-") }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: tcp-dsproxy
+    port: 4444
+    protocol: TCP
+    targetPort: tcp-dsproxy
+  selector:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: dsproxy
+  type: ClusterIP
+---
+{{- $envVars := include "dev-backends.common.env" (list . .Values.dsproxy) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "dev-backends.dsproxy.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+  labels:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: dsproxy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backends
+      app.kubernetes.io/name: dsproxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backends
+        app.kubernetes.io/name: dsproxy
+      annotations:
+        configmap/hash: {{ include (print $.Template.BasePath "/ds_proxy-secret.yaml") . | sha256sum }}
+    spec:
+      containers:
+      - name: dsproxy
+        env:
+          {{- if $envVars}}
+          {{- $envVars | indent 12 }}
+          {{- end }}
+        {{- with .Values.dsproxy.command }}
+        command:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.dsproxy.args }}
+        args:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        image: {{ .Values.dsproxy.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4444
+          name: tcp-dsproxy
+        volumeMounts:
+        {{- if .Values.dsproxy.localSecret.enabled }}
+        - name: dsproxy
+          mountPath: "/etc/dsproxy"
+          readOnly: true
+        {{- end }}
+        {{- range .Values.dsproxy.extraVolumeMounts }}
+        - name: {{ .name }}
+          mountPath: {{ .mountPath }}
+          subPath: {{ .subPath | default "" }}
+          readOnly: {{ .readOnly }}
+        {{- end }}
+      volumes:
+      {{- if .Values.dsproxy.localSecret.enabled }}
+      - name: dsproxy
+        secret:
+          secretName: {{ template "dev-backends.dsproxy.fullname" . }}
+      {{- end }}
+      {{- range .Values.dsproxy.extraVolumes }}
+      - name: {{ .name }}
+        {{- if .existingClaim }}
+        persistentVolumeClaim:
+          claimName: {{ .existingClaim }}
+        {{- else if .hostPath }}
+        hostPath:
+          {{ toYaml .hostPath | nindent 12 }}
+        {{- else if .csi }}
+        csi:
+          {{- toYaml .csi | nindent 12 }}
+        {{- else if .configMap }}
+        configMap:
+          {{- toYaml .configMap | nindent 12 }}
+        {{- else if .emptyDir }}
+        emptyDir:
+          {{- toYaml .emptyDir | nindent 12 }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      {{- end }}
+{{ end }}
