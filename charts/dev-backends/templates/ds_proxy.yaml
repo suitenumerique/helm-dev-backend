@@ -120,6 +120,9 @@ spec:
         {{- else if .configMap }}
         configMap:
           {{- toYaml .configMap | nindent 12 }}
+        {{- else if .secret }}
+        secret:
+          {{- toYaml .secret | nindent 12 }}
         {{- else if .emptyDir }}
         emptyDir:
           {{- toYaml .emptyDir | nindent 12 }}
