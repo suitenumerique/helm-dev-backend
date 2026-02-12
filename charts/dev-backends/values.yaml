@@ -79,11 +79,12 @@ dsproxy:
   aws_url: http://release-name-dev-backend-minio
   aws_region: eu-east-1
   enabled: false
+  replicas: 1
   name: dsproxy
-  envVars: 
+  envVars:
     <<: []
   #serviceNameOverride: dsproxy
-  image: lasuite/ds_proxy:c1be340fa5d4090e74392d41ea6faaebc7c9abe0
+  image: demarchenumerique/ds-proxy:v2.0.0-alpha.2
   command:
     - /bin/sh
     - "-c"

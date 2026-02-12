@@ -60,7 +60,7 @@ spec:
     matchLabels:
       app.kubernetes.io/instance: dev-backends
       app.kubernetes.io/name: dsproxy
-  replicas: 1
+  replicas: {{ .Values.dsproxy.replicas }}
   template:
     metadata:
       labels:
