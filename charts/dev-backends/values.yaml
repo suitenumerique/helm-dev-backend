@@ -80,6 +80,7 @@ dsproxy:
   aws_region: eu-east-1
   enabled: false
   replicas: 1
+  resources: {}
   name: dsproxy
   envVars:
     <<: []

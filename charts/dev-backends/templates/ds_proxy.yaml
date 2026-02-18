@@ -85,6 +85,10 @@ spec:
         {{- end }}
         image: {{ .Values.dsproxy.image }}
         imagePullPolicy: IfNotPresent
+        {{- with .Values.dsproxy.resources }}
+        resources:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
         ports:
         - containerPort: 4444
           name: tcp-dsproxy
