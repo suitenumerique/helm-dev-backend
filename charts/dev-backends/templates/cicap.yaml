@@ -1,0 +1,53 @@
+{{ if .Values.cicap.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.cicap.serviceNameOverride | default (include "dev-backends.cicap.fullname" . | trunc 52 | trimSuffix "-") }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: tcp-cicap
+    port: {{ .Values.cicap.port }}
+    protocol: TCP
+    targetPort: tcp-cicap
+  selector:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: cicap
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "dev-backends.cicap.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+  labels:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: cicap
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backends
+      app.kubernetes.io/name: cicap
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backends
+        app.kubernetes.io/name: cicap
+    spec:
+      containers:
+      - name: cicap
+        image: "{{ .Values.cicap.image }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ .Values.cicap.port }}
+          name: tcp-cicap
+        resources:
+          {{- toYaml .Values.cicap.resources | nindent 10 }}
+        readinessProbe:
+          tcpSocket:
+            port: tcp-cicap
+          initialDelaySeconds: 30
+          periodSeconds: 10
+{{ end }}

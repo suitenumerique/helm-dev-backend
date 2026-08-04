@@ -105,3 +105,11 @@ dsproxy:
       secretName: dsproxy-tls
   localSecret:
     enabled: false
+
+cicap:
+  enabled: false
+  name: cicap
+  #serviceNameOverride: cicap
+  image: opencloudeu/clamav-icap:latest
+  port: 1344
+  resources: {}
