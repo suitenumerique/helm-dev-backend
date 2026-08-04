@@ -53,6 +53,15 @@ to 63 chars and it includes 10 chars of hash and a separating '-'.
 {{- end -}}
 
 {{/*
+Create cicap name and version as used by the chart label.
+Truncated at 52 chars because StatefulSet label 'controller-revision-hash' is limited
+to 63 chars and it includes 10 chars of hash and a separating '-'.
+*/}}
+{{- define "dev-backends.cicap.fullname" -}}
+{{- printf "%s-%s" (include "dev-backends.fullname" .) .Values.cicap.name | trunc 52 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 transform dictionnary of environment variables
 Usage : {{ include "dev-backends.env.transformDict" .Values.envVars }}
 
