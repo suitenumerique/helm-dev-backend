@@ -35,14 +35,52 @@ spec:
       labels:
         app.kubernetes.io/instance: dev-backends
         app.kubernetes.io/name: cicap
+      annotations:
+        configmap/hash: {{ include (print $.Template.BasePath "/cicap-configmap.yaml") . | sha256sum }}
     spec:
+      initContainers:
+      - name: fix-permissions
+        image: "{{ .Values.cicap.clamd.image }}"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        command:
+          - sh
+          - -c
+          - |
+            chown -R clamav:clamav /var/lib/clamav
+        volumeMounts:
+        - name: clamav-db
+          mountPath: /var/lib/clamav
       containers:
       - name: cicap
-        image: "{{ .Values.cicap.image }}"
+        image: "{{ .Values.cicap.registry }}/{{ .Values.cicap.repository }}:{{ .Values.cicap.tag }}"
         imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -c
+          - |
+            until nc -z 127.0.0.1 3310; do
+              echo 'Clamd not responding yet, waiting...';
+              sleep 2;
+            done;
+            exec /var/lib/clamav/bin/c-icap -N -D
         ports:
         - containerPort: {{ .Values.cicap.port }}
           name: tcp-cicap
+        volumeMounts:
+        - name: config
+          mountPath: /var/lib/clamav/etc/c-icap.conf
+          subPath: c-icap.conf
+          readOnly: true
+        - name: config
+          mountPath: /var/lib/clamav/etc/virus_scan.conf
+          subPath: virus_scan.conf
+          readOnly: true
+        - name: config
+          mountPath: /var/lib/clamav/etc/clamd_mod.conf
+          subPath: clamd_mod.conf
+          readOnly: true
         resources:
           {{- toYaml .Values.cicap.resources | nindent 10 }}
         readinessProbe:
@@ -50,4 +88,30 @@ spec:
             port: tcp-cicap
           initialDelaySeconds: 30
           periodSeconds: 10
+      - name: clamd
+        image: "{{ .Values.cicap.clamd.image }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3310
+          name: tcp-clamd
+        volumeMounts:
+        - name: config
+          mountPath: /etc/clamav/clamd.conf
+          subPath: clamd.conf
+          readOnly: true
+        - name: clamav-db
+          mountPath: /var/lib/clamav
+        resources:
+          {{- toYaml .Values.cicap.resources | nindent 10 }}
+        readinessProbe:
+          tcpSocket:
+            port: tcp-clamd
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "dev-backends.cicap.fullname" . }}
+      - name: clamav-db
+        emptyDir: {}
 {{ end }}

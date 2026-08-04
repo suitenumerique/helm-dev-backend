@@ -110,6 +110,15 @@ cicap:
   enabled: false
   name: cicap
   #serviceNameOverride: cicap
-  image: opencloudeu/clamav-icap:latest
+  registry: registry.opencode.de
+  repository: bmi/opendesk/components/platform-development/images/clamav-icap
+  tag: "0.6.4"
+  # The clamd sidecar runs the ClamAV daemon and keeps the virus database up to date
+  clamd:
+    image: clamav/clamav:stable
   port: 1344
+  # MaxObjectSize limits the size of files scanned by the ICAP service
+  maxObjectSize: 100M
+  # StreamMaxLength limits the size of files scanned by clamd
+  streamMaxLength: 100M
   resources: {}

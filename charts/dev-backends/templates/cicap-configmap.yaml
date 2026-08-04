@@ -1,0 +1,62 @@
+{{ if .Values.cicap.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "dev-backends.cicap.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+  labels:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: cicap
+data:
+  c-icap.conf: |
+    PidFile /var/run/c-icap/c-icap.pid
+    Timeout 300
+    MaxKeepAliveRequests 100
+    KeepAliveTimeout 600
+    StartServers 1
+    MaxServers 4
+    MinSpareThreads 10
+    MaxSpareThreads 20
+    ThreadsPerChild 10
+    MaxRequestsPerChild 0
+    Port {{ .Values.cicap.port }}
+    ServerAdmin c-icap-admin
+    ServerName c-icap
+    TmpDir /var/tmp
+    MaxMemObject 131072
+    DebugLevel 1
+    Pipelining on
+    SupportBuggyClients off
+    ModulesDir /var/lib/clamav/lib/c_icap
+    ServicesDir /var/lib/clamav/lib/c_icap
+    TemplateDir /var/lib/clamav/share/c_icap/templates/
+    TemplateDefaultLanguage en
+    LoadMagicFile /var/lib/clamav/etc/c-icap.magic
+    RemoteProxyUsers off
+    RemoteProxyUserHeader X-Authenticated-User
+    RemoteProxyUserHeaderEncoded on
+    ServerLog /dev/stdout
+    AccessLog /dev/stdout
+    Service echo srv_echo.so
+    Include virus_scan.conf
+  virus_scan.conf: |
+    Service antivirus_module virus_scan.so
+    ServiceAlias srv_clamav virus_scan
+    ServiceAlias avscan virus_scan?allow204=on&sizelimit=off&mode=simple
+    virus_scan.ScanFileTypes TEXT DATA EXECUTABLE ARCHIVE GIF JPEG MSOFFICE
+    virus_scan.SendPercentData 5
+    virus_scan.StartSendPercentDataAfter 2M
+    virus_scan.MaxObjectSize {{ .Values.cicap.maxObjectSize }}
+    Include clamd_mod.conf
+  clamd_mod.conf: |
+    Module common clamd_mod.so
+    clamd_mod.ClamdHost 127.0.0.1
+    clamd_mod.ClamdPort 3310
+  clamd.conf: |
+    DatabaseDirectory /var/lib/clamav
+    TCPSocket 3310
+    StreamMaxLength {{ .Values.cicap.streamMaxLength }}
+    Foreground yes
+    LogFile /dev/stdout
+{{ end }}
