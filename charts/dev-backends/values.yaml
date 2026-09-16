@@ -22,7 +22,9 @@ redis:
 
 minio:
   enabled: false
-  image: minio/minio
+  image: quay.io/minio/minio
+  mc:
+    image: quay.io/minio/mc
   name: minio
   #serviceNameOverride: minio
   ingress:

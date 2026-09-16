@@ -165,7 +165,7 @@ spec:
             echo "MinIO est accessible !"
       containers:
       - name: mc
-        image: minio/mc
+        image: {{ .Values.minio.mc.image }}
         command:
           - /bin/sh
           - -c
