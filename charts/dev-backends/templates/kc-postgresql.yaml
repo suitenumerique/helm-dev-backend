@@ -35,6 +35,12 @@ spec:
         app.kubernetes.io/name: kc-postgresql
     spec:
       terminationGracePeriodSeconds: 10
+      {{- if not .Values.keycloak.db.persistence }}
+      volumes:
+      - name: data
+        emptyDir:
+          sizeLimit: {{ .Values.keycloak.db.size }}
+      {{- end }}
       containers:
       - name: pg
         image: {{ .Values.keycloak.db.image }}
@@ -60,6 +66,7 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /var/lib/postgresql
+  {{- if .Values.keycloak.db.persistence }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -68,4 +75,5 @@ spec:
       resources:
         requests:
           storage: {{ .Values.keycloak.db.size }}
+  {{- end }}
 {{ end }}
