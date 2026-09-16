@@ -35,6 +35,12 @@ spec:
         app.kubernetes.io/name: postgresql
     spec:
       terminationGracePeriodSeconds: 10
+      {{- if not .Values.postgres.persistence }}
+      volumes:
+      - name: data
+        emptyDir:
+          sizeLimit: {{ .Values.postgres.size }}
+      {{- end }}
       containers:
       - name: pg
         image: {{ .Values.postgres.image }}
@@ -70,6 +76,7 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /var/lib/postgresql/data
+  {{- if .Values.postgres.persistence }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -78,4 +85,5 @@ spec:
       resources:
         requests:
           storage: {{ .Values.postgres.size }}
+  {{- end }}
 {{ end }}

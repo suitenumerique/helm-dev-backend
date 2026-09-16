@@ -10,6 +10,8 @@ postgres:
   username: dinum
   password: pass
   database: dinum
+  # set to false to use an ephemeral emptyDir (sized by `size`) instead of a PVC
+  persistence: true
   size: 1Gi
 
 redis:
@@ -48,6 +50,8 @@ minio:
   username: dinum
   password: password
   bucket: dinum
+  # set to false to use an ephemeral emptyDir (sized by `size`) instead of a PVC
+  persistence: true
   size: 1Gi
   versioning: false
 
@@ -68,6 +72,8 @@ keycloak:
     username: dinum
     password: pass
     database: keycloak
+    # set to false to use an ephemeral emptyDir (sized by `size`) instead of a PVC
+    persistence: true
     size: 1Gi
     image: postgres:16-alpine
   realm:
