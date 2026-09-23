@@ -154,6 +154,11 @@ kind: Job
 metadata:
   name: {{ template "dev-backends.minio.fullname" . }}
   namespace: {{ include  "dev-backends.namespace" . }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
   ttlSecondsAfterFinished: 0
   template:
