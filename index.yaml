@@ -3,6 +3,15 @@ entries:
   dev-backend:
   - apiVersion: v2
     appVersion: latest
+    created: "2026-09-23T08:21:19.425713487Z"
+    digest: 586c3c38ea7913b5f06a6f7c9b7fb68995a1190c234942301e94908d0edbc144
+    name: dev-backend
+    type: application
+    urls:
+    - https://suitenumerique.github.io/helm-dev-backend/dev-backend-0.0.12.tgz
+    version: 0.0.12
+  - apiVersion: v2
+    appVersion: latest
     created: "2026-09-16T14:28:19.352386716Z"
     digest: ad1f0cc27a608e198b32244f526acec58ff450ae58dd910f86e003936a844b4b
     name: dev-backend
@@ -136,4 +145,4 @@ entries:
     urls:
     - https://suitenumerique.github.io/helm-dev-backend/dev-backend-0.0.1-beta1.tgz
     version: 0.0.1-beta1
-generated: "2026-09-16T14:28:19.35090368Z"
+generated: "2026-09-23T08:21:19.424673266Z"
