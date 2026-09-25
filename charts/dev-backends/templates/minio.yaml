@@ -110,11 +110,14 @@ spec:
       {{- end }}
       containers:
       - name: minio
+        {{- with .Values.minio.command }}
         command:
-          - /bin/sh
-          - -c
-          - |
-            minio server --address :{{ .Values.minio.api.port }} --console-address :{{ .Values.minio.console.port }} /data
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.minio.args }}
+        args:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         env:
           - name: MINIO_ROOT_PASSWORD
             valueFrom:

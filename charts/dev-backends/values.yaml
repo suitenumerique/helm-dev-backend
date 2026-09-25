@@ -24,11 +24,19 @@ redis:
 
 minio:
   enabled: false
-  image: quay.io/minio/minio
+  image: pgsty/silo
   mc:
-    image: quay.io/minio/mc
+    image: pgsty/mc
   name: minio
   #serviceNameOverride: minio
+  command: []
+  args:
+    - server
+    - --address
+    - ":9000"
+    - --console-address
+    - ":9001"
+    - /data
   ingress:
     enabled: false
     hostname: minio.127.0.0.1.nip.io
