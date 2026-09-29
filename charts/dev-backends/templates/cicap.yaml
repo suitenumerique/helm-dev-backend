@@ -38,20 +38,6 @@ spec:
       annotations:
         configmap/hash: {{ include (print $.Template.BasePath "/cicap-configmap.yaml") . | sha256sum }}
     spec:
-      initContainers:
-      - name: fix-permissions
-        image: "{{ .Values.cicap.clamd.image }}"
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          runAsUser: 0
-        command:
-          - sh
-          - -c
-          - |
-            chown -R clamav:clamav /var/lib/clamav
-        volumeMounts:
-        - name: clamav-db
-          mountPath: /var/lib/clamav
       containers:
       - name: cicap
         image: "{{ .Values.cicap.registry }}/{{ .Values.cicap.repository }}:{{ .Values.cicap.tag }}"
@@ -60,9 +46,14 @@ spec:
           - /bin/sh
           - -c
           - |
+            echo 'Waiting for clamd on 127.0.0.1:3310 (the first start downloads the virus database)...';
+            i=0;
             until nc -z 127.0.0.1 3310; do
-              echo 'Clamd not responding yet, waiting...';
-              sleep 2;
+              i=$((i + 5));
+              if [ $((i % 60)) -eq 0 ]; then
+                echo "Clamd not responding yet after ${i}s, check the clamd container logs: kubectl logs <pod> -c clamd";
+              fi;
+              sleep 5;
             done;
             exec /var/lib/clamav/bin/c-icap -N -D
         ports:
@@ -81,6 +72,10 @@ spec:
           mountPath: /var/lib/clamav/etc/clamd_mod.conf
           subPath: clamd_mod.conf
           readOnly: true
+        # clamd_mod sends the path of the c-icap temporary file to clamd
+        # (zSCAN), so clamd must see the same files
+        - name: scan-tmp
+          mountPath: /var/tmp
         resources:
           {{- toYaml .Values.cicap.resources | nindent 10 }}
         readinessProbe:
@@ -91,27 +86,35 @@ spec:
       - name: clamd
         image: "{{ .Values.cicap.clamd.image }}"
         imagePullPolicy: IfNotPresent
+        env:
+        # Tune the clamd.conf of the image instead of replacing it: the image
+        # entrypoint waits for the clamd local socket declared there, and clamd
+        # can not log to /dev/stdout (symlink)
+        - name: CLAMD_CONF_StreamMaxLength
+          value: {{ .Values.cicap.streamMaxLength | quote }}
+        {{- with .Values.cicap.clamd.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         ports:
         - containerPort: 3310
           name: tcp-clamd
         volumeMounts:
-        - name: config
-          mountPath: /etc/clamav/clamd.conf
-          subPath: clamd.conf
-          readOnly: true
         - name: clamav-db
           mountPath: /var/lib/clamav
+        - name: scan-tmp
+          mountPath: /var/tmp
         resources:
-          {{- toYaml .Values.cicap.resources | nindent 10 }}
+          {{- toYaml .Values.cicap.clamd.resources | nindent 10 }}
         readinessProbe:
           tcpSocket:
             port: tcp-clamd
-          initialDelaySeconds: 30
           periodSeconds: 10
       volumes:
       - name: config
         configMap:
           name: {{ template "dev-backends.cicap.fullname" . }}
       - name: clamav-db
+        emptyDir: {}
+      - name: scan-tmp
         emptyDir: {}
 {{ end }}
