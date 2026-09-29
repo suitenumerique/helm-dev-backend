@@ -113,12 +113,25 @@ cicap:
   registry: registry.opencode.de
   repository: bmi/opendesk/components/platform-development/images/clamav-icap
   tag: "0.6.4"
-  # The clamd sidecar runs the ClamAV daemon and keeps the virus database up to date
+  # The clamd sidecar runs the ClamAV daemon and keeps the virus database up to date.
+  # On the first start it downloads the database from database.clamav.net, then
+  # loads it in memory (~1Gi, about twice as much while reloading after an update).
+  # The container log shows the database download and "socket found, clamd started.";
+  # clamd itself logs to /var/log/clamav/clamd.log inside the container.
   clamd:
     image: clamav/clamav:stable
+    # Extra environment variables, e.g. CLAMD_CONF_<Option> / FRESHCLAM_CONF_<Option>
+    # to tune clamd.conf / freshclam.conf (FRESHCLAM_CONF_PrivateMirror for a mirror)
+    env: []
+    resources:
+      requests:
+        memory: 1536Mi
+      limits:
+        memory: 3Gi
   port: 1344
   # MaxObjectSize limits the size of files scanned by the ICAP service
   maxObjectSize: 100M
   # StreamMaxLength limits the size of files scanned by clamd
   streamMaxLength: 100M
+  # Resources of the c-icap container (see clamd.resources for the clamd sidecar)
   resources: {}
