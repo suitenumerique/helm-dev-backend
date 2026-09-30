@@ -30,12 +30,9 @@ minio:
   name: minio
   #serviceNameOverride: minio
   command: []
+  # listen addresses come from api.port and console.port (MINIO_ADDRESS / MINIO_CONSOLE_ADDRESS)
   args:
     - server
-    - --address
-    - ":9000"
-    - --console-address
-    - ":9001"
     - /data
   ingress:
     enabled: false

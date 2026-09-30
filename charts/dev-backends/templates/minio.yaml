@@ -131,6 +131,10 @@ spec:
                 name: {{ .Values.minio.serviceNameOverride | default (include "dev-backends.minio.fullname" . | trunc 52 | trimSuffix "-") }}
           - name: MINIO_API_CORS_ALLOW_ORIGIN
             value: "*"
+          - name: MINIO_ADDRESS
+            value: ":{{ .Values.minio.api.port }}"
+          - name: MINIO_CONSOLE_ADDRESS
+            value: ":{{ .Values.minio.console.port }}"
         image: {{ .Values.minio.image }}
         imagePullPolicy: IfNotPresent
         ports:
