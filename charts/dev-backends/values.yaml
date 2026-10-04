@@ -63,6 +63,46 @@ minio:
   size: 1Gi
   versioning: false
 
+garage:
+  enabled: false
+  image: dxflrs/garage:v2.4.1
+  name: garage
+  #serviceNameOverride: garage
+  accessKey: dinum-access-key
+  secretKey: dinum-secret-access-key
+  bucket: dinum
+  # Clients must sign their requests for this region (AWS_S3_REGION_NAME)
+  region: local
+  rpcSecret: ""
+  api:
+    port: 9000
+  ingress:
+    enabled: false
+    hostname: garage.127.0.0.1.nip.io
+    annotations: {}
+    tls:
+      enabled: false
+      secretName: garage-tls
+  # Garage denies cross-origin requests by default, a job configures CORS on the
+  # bucket once it is available
+  cors:
+    enabled: true
+    image: amazon/aws-cli:2.37.1
+    allowedOrigins:
+      - "*"
+    allowedMethods:
+      - GET
+      - HEAD
+      - PUT
+    allowedHeaders:
+      - "*"
+    exposeHeaders:
+      - ETag
+  # set to false to use an ephemeral emptyDir (sized by `size`) instead of a PVC
+  persistence: true
+  size: 1Gi
+  resources: {}
+
 keycloak:
   enabled: false
   image: quay.io/keycloak/keycloak:20.0.1

@@ -1,0 +1,212 @@
+{{ if .Values.garage.enabled }}
+{{- if .Values.garage.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "dev-backends.garage.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+  {{- with .Values.garage.ingress.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+  - host: "{{ .Values.garage.ingress.hostname }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "dev-backends.garage.serviceName" . }}
+            port:
+              number: {{ .Values.garage.api.port }}
+  {{- if .Values.garage.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - "{{ .Values.garage.ingress.hostname }}"
+    secretName: "{{ .Values.garage.ingress.tls.secretName }}"
+  {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "dev-backends.garage.serviceName" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+spec:
+  ports:
+  - name: client
+    port: {{ .Values.garage.api.port }}
+    protocol: TCP
+    targetPort: client
+  selector:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: garage
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "dev-backends.garage.fullname" . }}
+  namespace: {{ include  "dev-backends.namespace" . }}
+  labels:
+    app.kubernetes.io/instance: dev-backends
+    app.kubernetes.io/name: garage
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: dev-backends
+      app.kubernetes.io/name: garage
+  serviceName: {{ include "dev-backends.garage.serviceName" . }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: dev-backends
+        app.kubernetes.io/name: garage
+      annotations:
+        configmap/hash: {{ include (print $.Template.BasePath "/garage-configmap.yaml") . | sha256sum }}
+        secret/hash: {{ include (print $.Template.BasePath "/garage-secret.yaml") . | sha256sum }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "dev-backends.garage.fullname" . }}
+      {{- if not .Values.garage.persistence }}
+      - name: data
+        emptyDir:
+          sizeLimit: {{ .Values.garage.size }}
+      {{- end }}
+      containers:
+      - name: garage
+        image: {{ .Values.garage.image }}
+        imagePullPolicy: IfNotPresent
+        # Single node layout, default access key and default bucket are
+        # created on startup (and left untouched when they already exist)
+        command:
+          - /garage
+          - server
+          - --single-node
+          - --default-bucket
+        env:
+          - name: GARAGE_RPC_SECRET
+            valueFrom:
+              secretKeyRef:
+                key: rpcSecret
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: GARAGE_DEFAULT_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: accessKey
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: GARAGE_DEFAULT_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                key: secretKey
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: GARAGE_DEFAULT_BUCKET
+            valueFrom:
+              secretKeyRef:
+                key: bucket
+                name: {{ include "dev-backends.garage.serviceName" . }}
+        ports:
+        - containerPort: {{ .Values.garage.api.port }}
+          name: client
+        readinessProbe:
+          exec:
+            command:
+              - /garage
+              - health
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        {{- with .Values.garage.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - mountPath: /etc/garage.toml
+          name: config
+          subPath: garage.toml
+        - mountPath: /var/lib/garage
+          name: data
+  {{- if .Values.garage.persistence }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.garage.size }}
+  {{- end }}
+{{- if .Values.garage.cors.enabled }}
+{{- $cors := dict
+  "AllowedOrigins" .Values.garage.cors.allowedOrigins
+  "AllowedMethods" .Values.garage.cors.allowedMethods
+  "AllowedHeaders" .Values.garage.cors.allowedHeaders
+  "ExposeHeaders" .Values.garage.cors.exposeHeaders
+}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "dev-backends.garage.fullname" . }}-cors
+  namespace: {{ include  "dev-backends.namespace" . }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: aws-cli
+        image: {{ .Values.garage.cors.image }}
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: accessKey
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: secretKey
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: AWS_DEFAULT_REGION
+            valueFrom:
+              secretKeyRef:
+                key: region
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: BUCKET
+            valueFrom:
+              secretKeyRef:
+                key: bucket
+                name: {{ include "dev-backends.garage.serviceName" . }}
+          - name: AWS_ENDPOINT_URL
+            value: http://{{ include "dev-backends.garage.serviceName" . }}:{{ .Values.garage.api.port }}
+          - name: CORS_CONFIGURATION
+            value: {{ dict "CORSRules" (list $cors) | toJson | quote }}
+        command:
+          - /bin/sh
+          - -c
+          - |
+            deadline=$(($(date +%s) + 300))
+            until aws s3api head-bucket --bucket="$BUCKET" --cli-connect-timeout=5; do
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "Bucket $BUCKET still unavailable on $AWS_ENDPOINT_URL" >&2
+                exit 1
+              fi
+              echo "Waiting for bucket $BUCKET on $AWS_ENDPOINT_URL"
+              sleep 5
+            done
+            exec aws s3api put-bucket-cors --bucket="$BUCKET" \
+              --cors-configuration="$CORS_CONFIGURATION"
+      restartPolicy: Never
+  backoffLimit: 3
+{{- end }}
+{{ end }}
