@@ -35,6 +35,47 @@ to 63 chars and it includes 10 chars of hash and a separating '-'.
 {{- end -}}
 
 {{/*
+Create garage name and version as used by the chart label.
+Truncated at 52 chars because StatefulSet label 'controller-revision-hash' is limited
+to 63 chars and it includes 10 chars of hash and a separating '-'.
+*/}}
+{{- define "dev-backends.garage.fullname" -}}
+{{- printf "%s-%s" (include "dev-backends.fullname" .) .Values.garage.name | trunc 52 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Name of the garage service and secret.
+*/}}
+{{- define "dev-backends.garage.serviceName" -}}
+{{- .Values.garage.serviceNameOverride | default (include "dev-backends.garage.fullname" .) | trunc 52 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Garage RPC secret: 32 bytes encoded as 64 hexadecimal characters.
+*/}}
+{{- define "dev-backends.garage.rpcSecret" -}}
+{{- .Values.garage.rpcSecret | default (printf "%s/%s/garage-rpc-secret" (include "dev-backends.namespace" .) (include "dev-backends.garage.fullname" .) | sha256sum) -}}
+{{- end -}}
+
+{{/*
+Fail early on values Garage would reject at startup.
+*/}}
+{{- define "dev-backends.garage.validate" -}}
+{{- if not (regexMatch "^[A-Za-z0-9._-]{8,}$" (toString .Values.garage.accessKey)) -}}
+{{- fail "garage.accessKey must be at least 8 characters long and only contain [A-Za-z0-9._-]" -}}
+{{- end -}}
+{{- if not (regexMatch "^[!-~]{16,}$" (toString .Values.garage.secretKey)) -}}
+{{- fail "garage.secretKey must be at least 16 printable ASCII characters long, without spaces" -}}
+{{- end -}}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$" (toString .Values.garage.bucket)) -}}
+{{- fail "garage.bucket must be a valid S3 bucket name" -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9a-fA-F]{64}$" (include "dev-backends.garage.rpcSecret" .)) -}}
+{{- fail "garage.rpcSecret must be 64 hexadecimal characters" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create keycloak name and version as used by the chart label.
 Truncated at 52 chars because StatefulSet label 'controller-revision-hash' is limited
 to 63 chars and it includes 10 chars of hash and a separating '-'.
