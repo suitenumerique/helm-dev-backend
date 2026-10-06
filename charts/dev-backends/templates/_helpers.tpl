@@ -17,12 +17,12 @@ to 63 chars and it includes 10 chars of hash and a separating '-'.
 {{- end -}}
 
 {{/*
-Create redis name and version as used by the chart label.
+Create valkey name and version as used by the chart label.
 Truncated at 52 chars because StatefulSet label 'controller-revision-hash' is limited
 to 63 chars and it includes 10 chars of hash and a separating '-'.
 */}}
-{{- define "dev-backends.redis.fullname" -}}
-{{- printf "%s-%s" (include "dev-backends.fullname" .) .Values.redis.name | trunc 52 | trimSuffix "-" -}}
+{{- define "dev-backends.valkey.fullname" -}}
+{{- printf "%s-%s" (include "dev-backends.fullname" .) .Values.valkey.name | trunc 52 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*

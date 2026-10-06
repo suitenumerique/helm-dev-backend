@@ -14,11 +14,11 @@ postgres:
   persistence: true
   size: 1Gi
 
-redis:
+valkey:
   enabled: false
-  name: redis
-  #serviceNameOverride: redis
-  image: redis:8.2-alpine
+  name: valkey
+  #serviceNameOverride: valkey
+  image: valkey/valkey:9.1-alpine
   #username: user
   #password: pass
 
