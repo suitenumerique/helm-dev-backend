@@ -58,6 +58,8 @@ spec:
         - containerPort: 5432
           name: tcp-postgresql
         env:
+          - name: PGDATA
+            value: /var/lib/postgresql/data # force the folder otherwise it may change depending on the version (v18+ has `/var/lib/postgresql`)
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:

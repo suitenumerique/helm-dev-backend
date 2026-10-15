@@ -48,6 +48,8 @@ spec:
         - containerPort: 5432
           name: tcp-postgresql
         env:
+          - name: PGDATA
+            value: /var/lib/postgresql/data # force the folder otherwise it may change depending on the version (v18+ has `/var/lib/postgresql`)
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
@@ -65,7 +67,7 @@ spec:
                 name: {{ template "dev-backends.keycloak.fullname" . }}-pg
         volumeMounts:
         - name: data
-          mountPath: /var/lib/postgresql
+          mountPath: /var/lib/postgresql/data
   {{- if .Values.keycloak.db.persistence }}
   volumeClaimTemplates:
   - metadata:
